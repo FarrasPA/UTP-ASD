@@ -1,0 +1,199 @@
+#include <iostream>
+#include <string>
+#include <iomanip> 
+using namespace std;
+
+
+// LEVEL 1 & 2: NODE PESANAN (Horizontal Queue)
+struct PesananNode {
+    string pemilik;
+    double jumlah;
+    PesananNode* sebelum;
+    PesananNode* sesudah;
+
+    PesananNode(string id, double qty) {
+        pemilik = id;
+        jumlah = qty;
+        sebelum = NULL;
+        sesudah = NULL;
+    }
+};
+
+
+// LEVEL 3: NODE HARGA (Vertical Linked List)
+struct HargaNode {
+    double nilaiHarga;
+    PesananNode* antreDepan;
+    PesananNode* antreBelakang;
+    HargaNode* atas;
+    HargaNode* bawah;
+
+    HargaNode(double h) {
+        nilaiHarga = h;
+        antreDepan = NULL;
+        antreBelakang = NULL;
+        atas = NULL;
+        bawah = NULL;
+    }
+};
+
+class BukuPesananPEPE {
+private:
+    HargaNode* kepalaHarga;
+
+    HargaNode* cariAtauBuatLevel(double harga) {
+        if (kepalaHarga == NULL) {
+            kepalaHarga = new HargaNode(harga);
+            return kepalaHarga;
+        }
+
+        HargaNode* jalan = kepalaHarga;
+        HargaNode* sebelumnya = NULL;
+
+        while (jalan != NULL && jalan->nilaiHarga > harga) {
+            sebelumnya = jalan;
+            jalan = jalan->bawah;
+        }
+
+        if (jalan != NULL && jalan->nilaiHarga == harga) {
+            return jalan;
+        }
+
+        HargaNode* baru = new HargaNode(harga);
+
+        if (sebelumnya == NULL) {
+            baru->bawah = kepalaHarga;
+            kepalaHarga->atas = baru;
+            kepalaHarga = baru;
+        } else if (jalan == NULL) {
+            sebelumnya->bawah = baru;
+            baru->atas = sebelumnya;
+        } else {
+            sebelumnya->bawah = baru;
+            baru->atas = sebelumnya;
+            baru->bawah = jalan;
+            jalan->atas = baru;
+        }
+
+        return baru;
+    }
+
+public:
+    BukuPesananPEPE() {
+        kepalaHarga = NULL;
+    }
+
+    void tambahPesanan(double harga, string idUser, double qty) {
+        HargaNode* hNode = cariAtauBuatLevel(harga);
+        PesananNode* baruPesanan = new PesananNode(idUser, qty);
+
+        if (hNode->antreDepan == NULL) {
+            hNode->antreDepan = baruPesanan;
+            hNode->antreBelakang = baruPesanan;
+        } else {
+            hNode->antreBelakang->sesudah = baruPesanan;
+            baruPesanan->sebelum = hNode->antreBelakang;
+            hNode->antreBelakang = baruPesanan;
+        }
+        cout << "[+] Pesanan masuk: " << idUser 
+             << " | " << qty << " PEPE di harga Rp" 
+             << fixed << setprecision(0) << harga << endl;
+    }
+
+    bool batalPesanan(string idUser) {
+        HargaNode* hCurr = kepalaHarga;
+        while (hCurr != NULL) {
+            PesananNode* pCurr = hCurr->antreDepan;
+            while (pCurr != NULL) {
+                if (pCurr->pemilik == idUser) {
+                    if (pCurr->sebelum != NULL) {
+                        pCurr->sebelum->sesudah = pCurr->sesudah;
+                    } else {
+                        hCurr->antreDepan = pCurr->sesudah;
+                    }
+
+                    if (pCurr->sesudah != NULL) {
+                        pCurr->sesudah->sebelum = pCurr->sebelum;
+                    } else {
+                        hCurr->antreBelakang = pCurr->sebelum;
+                    }
+
+                    cout << "[-] Pesanan " << idUser << " berhasil dibatalkan." << endl;
+                    delete pCurr;
+                    return true;
+                }
+                pCurr = pCurr->sesudah;
+            }
+            hCurr = hCurr->bawah;
+        }
+        cout << "[!] Pesanan " << idUser << " tidak ditemukan." << endl;
+        return false;
+    }
+
+    void eksekusiPesananTeratas() {
+        if (kepalaHarga == NULL || kepalaHarga->antreDepan == NULL) {
+            cout << "[!] Order Book kosong." << endl;
+            return;
+        }
+
+        PesananNode* target = kepalaHarga->antreDepan;
+        cout << "[MATCH] Eksekusi pesanan: " << target->pemilik 
+             << " (" << target->jumlah << " PEPE)" << endl;
+
+        kepalaHarga->antreDepan = target->sesudah;
+        if (kepalaHarga->antreDepan != NULL) {
+            kepalaHarga->antreDepan->sebelum = NULL;
+        } else {
+            kepalaHarga->antreBelakang = NULL;
+        }
+        delete target;
+
+        if (kepalaHarga->antreDepan == NULL) {
+            HargaNode* kosong = kepalaHarga;
+            kepalaHarga = kepalaHarga->bawah;
+            if (kepalaHarga != NULL) {
+                kepalaHarga->atas = NULL;
+            }
+            delete kosong;
+        }
+    }
+
+    void tampilkanOrderBook() {
+        cout << "\n=== KONDISI ORDER BOOK ===" << endl;
+        HargaNode* hCurr = kepalaHarga;
+        if (hCurr == NULL) cout << "Kosong" << endl;
+
+        while (hCurr != NULL) {
+            cout << "Harga Rp" << fixed << setprecision(0) << hCurr->nilaiHarga << " -> [ ";
+            PesananNode* pCurr = hCurr->antreDepan;
+            while (pCurr != NULL) {
+                cout << pCurr->pemilik << "(" << pCurr->jumlah << ")";
+                if (pCurr->sesudah != NULL) cout << " <-> ";
+                pCurr = pCurr->sesudah;
+            }
+            cout << " ]" << endl;
+            hCurr = hCurr->bawah;
+        }
+        cout << "==========================\n" << endl;
+    }
+};
+
+int main() {
+    BukuPesananPEPE buku;
+
+    buku.tambahPesanan(1000000, "Andi", 1.5);
+    buku.tambahPesanan(1000000, "Budi", 2.0);
+    buku.tambahPesanan(1050000, "Citra", 0.5);
+    buku.tambahPesanan(950000, "Dewi", 3.0);
+    buku.tambahPesanan(1000000, "Eka", 1.0);
+
+    buku.tampilkanOrderBook();
+
+    buku.batalPesanan("Budi");
+    buku.tampilkanOrderBook();
+
+    buku.eksekusiPesananTeratas();
+    buku.tampilkanOrderBook();
+
+    return 0;
+}
